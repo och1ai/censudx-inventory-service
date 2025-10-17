@@ -125,8 +125,8 @@ jobs:
         
     - name: 🔍 Validate docker-compose
       run: |
-        # Test that docker-compose file is valid
-        docker-compose config
+        # Test that docker-compose file is valid (using docker compose v2)
+        docker compose config
 
   # Job 5: Quality Verification
   quality:
