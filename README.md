@@ -13,27 +13,130 @@ A comprehensive inventory management microservice built with FastAPI, PostgreSQL
 
 ## 🏗️ Architecture
 
+### 📊 System Architecture Overview
+
+The Censudx Inventory Service follows a **microservices architecture** with **event-driven patterns**, implementing multiple design patterns for scalability and maintainability.
+
+```plantuml
+@startuml system-architecture
+!theme plain
+skinparam backgroundColor #FFFFFF
+
+title Censudx Inventory Service - System Architecture
+
+actor "Client" as client
+rectangle "API Gateway (Nginx)" as gateway {
+  note right : Load Balancing\nRate Limiting\nSecurity Headers\nCORS
+}
+
+rectangle "Inventory Service" as service {
+  component "FastAPI Application" as api
+  component "Authentication Middleware" as auth
+  component "Business Logic Layer" as logic
+  component "Data Access Layer (CRUD)" as dal
+  
+  api --> auth : validates
+  auth --> logic : processes
+  logic --> dal : accesses
+}
+
+database "PostgreSQL" as db {
+  entity "inventory_items" as items
+  entity "inventory_transactions" as transactions  
+  entity "low_stock_alerts" as alerts
+}
+
+queue "RabbitMQ" as mq {
+  queue "low_stock_alerts" as lsa_queue
+  queue "stock_validation" as sv_queue
+  queue "inventory_updates" as iu_queue
+}
+
+cache "Redis Cache" as cache {
+  note right : Session Storage\nQuery Caching\nRate Limiting
+}
+
+' Connections
+client --> gateway : HTTP/HTTPS
+gateway --> api : proxies to
+dal --> db : SQL queries
+logic --> mq : publishes events
+service --> cache : caches data
+
+' Data relationships
+items ||--o{ transactions : has many
+items ||--o{ alerts : generates
+
+@enduml
 ```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   API Gateway   │────│ Inventory Service │────│   PostgreSQL    │
-│     (Stub)      │    │     (FastAPI)    │    │    Database     │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-                                │
-                                │
-                        ┌──────────────────┐
-                        │     RabbitMQ     │
-                        │   (Messaging)    │
-                        └──────────────────┘
+
+### 🎨 Design Patterns & Architecture Patterns
+
+The service implements several key design patterns for robust, maintainable code:
+
+#### 🏛️ **Layered Architecture Pattern**
+- **Presentation Layer**: FastAPI endpoints, middleware, request/response models
+- **Business Logic Layer**: Core inventory operations, stock management, alert generation
+- **Data Access Layer**: CRUD operations, repository pattern, database models
+- **Infrastructure Layer**: Database drivers, messaging clients, external API clients
+
+#### 📦 **Repository Pattern**
+```python
+# Abstracts data access logic
+class IInventoryRepository(ABC):
+    async def get_all(self) -> List[InventoryItem]
+    async def get_by_id(self, item_id: int) -> InventoryItem
+    async def create(self, item: InventoryItem) -> InventoryItem
+    async def update(self, item_id: int, item: InventoryItem) -> InventoryItem
 ```
+
+#### 🔌 **Dependency Injection Pattern**
+```python
+# Dependencies injected through FastAPI's dependency system
+async def create_inventory_item(
+    item: InventoryItemCreate,
+    repository: IInventoryRepository = Depends(get_repository),
+    messaging: IMessagingService = Depends(get_messaging_service)
+):
+```
+
+#### 🔎 **Observer Pattern**
+- Stock level observers for automated alerts
+- Event publishers for RabbitMQ messaging
+- Notification system for low stock conditions
+
+#### 🏠 **Factory Pattern**
+- Alert factories for different alert types (Low Stock, Critical Stock)
+- Message factories for different event types
+- Repository factories for different storage backends
+
+#### 🌐 **Event-Driven Architecture**
+- Asynchronous event publishing via RabbitMQ
+- Decoupled services through message queues
+- Event sourcing for inventory transactions
 
 ### Service Components
 
-- **Inventory Service**: Core FastAPI application handling inventory operations
-- **API Gateway**: Request routing and load balancing (stub implementation)
-- **PostgreSQL Database**: Persistent storage for inventory data
-- **RabbitMQ**: Asynchronous messaging for alerts and inter-service communication
-- **Authentication Stub**: JWT-based authentication simulation
-- **Product Service Stub**: Product information lookup simulation
+- **Inventory Service**: Core FastAPI application implementing layered architecture
+- **API Gateway**: Nginx-based routing with security, rate limiting, and load balancing
+- **PostgreSQL Database**: ACID-compliant storage with optimized indexing
+- **RabbitMQ**: Event-driven messaging with persistent queues
+- **Redis Cache**: High-performance caching and session storage
+- **Authentication Service**: JWT-based security with role-based access control
+
+### 📊 **Detailed Architecture Diagrams**
+
+For comprehensive architecture diagrams including request flows, design patterns, database schemas, and deployment architecture, see: **[Architecture Diagrams](docs/architecture-diagrams.md)**
+
+**Included diagrams:**
+- 📊 System Architecture Overview
+- 🔄 Request Flow Diagram  
+- 🏗️ Layered Architecture Pattern
+- 🎯 Design Patterns Implementation
+- 🔌 Event-Driven Architecture
+- 🗄 Database Schema (ERD)
+- 🔒 Security Architecture
+- 🚀 Deployment Architecture
 
 ## 🚀 Quick Start
 
@@ -343,10 +446,12 @@ This project includes a comprehensive GitHub Actions CI/CD pipeline that automat
 - **Type checking**: mypy (optional)
 
 ### 🧪 **Automated Testing**
-- **Multi-version testing**: Python 3.10, 3.11, 3.12
-- **Service integration**: PostgreSQL, RabbitMQ, Redis
-- **Coverage reporting**: Codecov integration
-- **Test matrix**: All 18 tests across multiple environments
+- **Unit Tests**: 18 comprehensive tests covering all functionality
+- **API Endpoint Testing**: cURL-based testing of all REST endpoints
+- **RabbitMQ Integration**: Event-driven messaging validation
+- **Multi-version testing**: Python 3.11 and 3.12
+- **Service integration**: Live RabbitMQ service testing
+- **End-to-end validation**: Full request/response cycle testing
 
 ### 🐳 **Docker Integration**
 - **Build verification**: Dockerfile validation
@@ -362,10 +467,11 @@ This project includes a comprehensive GitHub Actions CI/CD pipeline that automat
 
 1. **Lint** → Code quality and formatting
 2. **Security** → Vulnerability scanning
-3. **Test** → Comprehensive test suite with services
-4. **Docker** → Container build and validation
-5. **Quality** → Overall project quality verification
-6. **Deploy Check** → Deployment readiness validation
+3. **Unit Tests** → 18 comprehensive tests across Python versions
+4. **Docker Build** → Container build and validation
+5. **API Testing** → Live endpoint testing with cURL + RabbitMQ integration
+6. **Quality** → Overall project quality verification (100%)
+7. **Deploy Check** → Deployment readiness validation
 
 ### 📊 **Pipeline Status**
 

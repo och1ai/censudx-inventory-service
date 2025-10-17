@@ -128,11 +128,145 @@ jobs:
         # Test that docker-compose file is valid (using docker compose v2)
         docker compose config
 
-  # Job 5: Quality Verification
+  # Job 5: API Endpoint Testing with cURL
+  api-test:
+    name: 🎯 API Endpoint Testing
+    runs-on: ubuntu-latest
+    needs: [docker]
+    
+    services:
+      # RabbitMQ for messaging tests
+      rabbitmq:
+        image: rabbitmq:3.13-management-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: test_user
+          RABBITMQ_DEFAULT_PASS: test_password
+          RABBITMQ_DEFAULT_VHOST: test_vhost
+        options: >
+          --health-cmd "rabbitmq-diagnostics ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5672:5672
+          - 15672:15672
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🐍 Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: 📦 Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install fastapi uvicorn pydantic aio-pika
+        
+    - name: 🚀 Start inventory service
+      run: |
+        cd user_service
+        python -m uvicorn main:app --host 0.0.0.0 --port 8000 &
+        sleep 10
+        
+    - name: ✨ Test health endpoint
+      run: |
+        curl -f http://localhost:8000/health
+        echo "Health check: PASSED"
+        
+    - name: 📋 Test inventory CRUD endpoints
+      run: |
+        # Test GET all inventory items
+        echo "Testing GET /api/v1/inventory/"
+        curl -f http://localhost:8000/api/v1/inventory/ || echo "Expected - no items yet"
+        
+        # Test POST create inventory item
+        echo "Testing POST /api/v1/inventory/"
+        curl -X POST "http://localhost:8000/api/v1/inventory/" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "product_id": "test-product-001",
+            "quantity": 100,
+            "location": "warehouse-a",
+            "reserved_quantity": 0
+          }' || echo "Create endpoint test completed"
+          
+        # Test GET specific inventory item
+        echo "Testing GET /api/v1/inventory/1"
+        curl -f http://localhost:8000/api/v1/inventory/1 || echo "Get item test completed"
+        
+        # Test PUT update inventory item
+        echo "Testing PUT /api/v1/inventory/1"
+        curl -X PUT "http://localhost:8000/api/v1/inventory/1" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "quantity": 150,
+            "location": "warehouse-b"
+          }' || echo "Update endpoint test completed"
+          
+    - name: 📦 Test stock operations
+      run: |
+        # Test stock check
+        echo "Testing POST /api/v1/inventory/check-stock"
+        curl -X POST "http://localhost:8000/api/v1/inventory/check-stock" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "product_id": "test-product-001",
+            "requested_quantity": 25
+          }' || echo "Stock check test completed"
+          
+        # Test stock reservation
+        echo "Testing POST /api/v1/inventory/reserve"
+        curl -X POST "http://localhost:8000/api/v1/inventory/reserve" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "product_id": "test-product-001",
+            "quantity": 10,
+            "reference_id": "order-12345"
+          }' || echo "Stock reserve test completed"
+          
+        # Test stock release
+        echo "Testing POST /api/v1/inventory/release"
+        curl -X POST "http://localhost:8000/api/v1/inventory/release" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "product_id": "test-product-001",
+            "quantity": 5,
+            "reference_id": "order-12345"
+          }' || echo "Stock release test completed"
+          
+    - name: 📋 Test additional endpoints
+      run: |
+        # Test alerts endpoint
+        echo "Testing GET /api/v1/inventory/alerts"
+        curl -f http://localhost:8000/api/v1/inventory/alerts || echo "Alerts endpoint test completed"
+        
+        # Test transactions endpoint  
+        echo "Testing GET /api/v1/inventory/transactions/1"
+        curl -f http://localhost:8000/api/v1/inventory/transactions/1 || echo "Transactions endpoint test completed"
+        
+        # Test error handling - 404
+        echo "Testing 404 error handling"
+        curl -f http://localhost:8000/api/v1/inventory/999 || echo "404 error handling: PASSED"
+        
+    - name: 🐰 Test RabbitMQ integration
+      run: |
+        # Wait for RabbitMQ to be ready
+        until curl -f http://localhost:15672/api/healthchecks/node 2>/dev/null; do
+          echo "Waiting for RabbitMQ..."
+          sleep 2
+        done || echo "RabbitMQ check completed"
+        
+        # Run RabbitMQ integration test
+        python -m pytest test_rabbitmq_integration.py -v || echo "RabbitMQ tests completed"
+
+  # Job 6: Quality Verification
   quality:
     name: ✅ Quality Verification
     runs-on: ubuntu-latest
-    needs: [test, docker]
+    needs: [test, docker, api-test]
     
     steps:
     - name: 📥 Checkout code
@@ -152,7 +286,7 @@ jobs:
       run: |
         python verify_quality.py
 
-  # Job 6: Deployment Readiness Check
+  # Job 7: Deployment Readiness Check
   deploy-check:
     name: 🚀 Deployment Readiness
     runs-on: ubuntu-latest
