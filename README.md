@@ -1,4 +1,11 @@
-# Censudx Inventory Service
+# 
+```
+░▒█▀▀▄░█▀▀░█▀▀▄░█▀▀░█░▒█░█▀▄░█░█░░░▀█▀░█▀▀▄░▄░░░▄░█▀▀░█▀▀▄░▀█▀░▄▀▀▄░█▀▀▄░█░░█░░░▒█▀▀▀█░█▀▀░█▀▀▄░▄░░░▄░░▀░░█▀▄░█▀▀
+░▒█░░░░█▀▀░█░▒█░▀▀▄░█░▒█░█░█░▄▀▄░░░▒█░░█░▒█░░█▄█░░█▀▀░█░▒█░░█░░█░░█░█▄▄▀░█▄▄█░░░░▀▀▀▄▄░█▀▀░█▄▄▀░░█▄█░░░█▀░█░░░█▀▀
+░▒█▄▄▀░▀▀▀░▀░░▀░▀▀▀░░▀▀▀░▀▀░░▀░▀░░░▄█▄░▀░░▀░░░▀░░░▀▀▀░▀░░▀░░▀░░░▀▀░░▀░▀▀░▄▄▄▀░░░▒█▄▄▄█░▀▀▀░▀░▀▀░░░▀░░░▀▀▀░▀▀▀░▀▀▀
+
+```
+
 
 [![CI/CD](https://github.com/och1ai/censudx-inventory-service/actions/workflows/ci.yml/badge.svg)](https://github.com/och1ai/censudx-inventory-service/actions/workflows/ci.yml)
 [![Tests](https://img.shields.io/badge/tests-18%2F18-brightgreen)](https://github.com/och1ai/censudx-inventory-service/actions)
